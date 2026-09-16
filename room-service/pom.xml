@@ -9,10 +9,17 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>root-service</artifactId>
+    <artifactId>room-service</artifactId>
 
     <properties>
 
     </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+    </dependencies>
 
 </project>

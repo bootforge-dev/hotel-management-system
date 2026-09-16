@@ -7,7 +7,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>hotel-service</module>
-        <module>root-service</module>
+        <module>room-service</module>
         <module>booking-service</module>
     </modules>
 
