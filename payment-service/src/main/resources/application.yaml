@@ -1,9 +1,9 @@
 spring:
   application:
-    name: booking-service
+    name: payment-service
 
   datasource:
-    url: jdbc:mysql://localhost:3306/bookings_db
+    url: jdbc:mysql://localhost:3306/payments_db
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -20,12 +20,21 @@ spring:
 
   kafka:
     bootstrap-servers: localhost:9092
+    consumer:
+      group-id: payment-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.bootforge.hbp.common.event
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
+
 server:
-  port: 9003
+  port: 9004
 
 eureka:
   client:

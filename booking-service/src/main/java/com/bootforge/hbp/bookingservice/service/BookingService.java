@@ -4,6 +4,7 @@ import com.bootforge.hbp.bookingservice.client.HotelClient;
 import com.bootforge.hbp.bookingservice.client.RoomClient;
 import com.bootforge.hbp.bookingservice.entity.Booking;
 import com.bootforge.hbp.bookingservice.exception.ResourceNotFoundException;
+import com.bootforge.hbp.bookingservice.kafka.producer.BookingEventProducer;
 import com.bootforge.hbp.bookingservice.repository.BookingRepository;
 import com.bootforge.hbp.common.dto.booking.BookingResponse;
 import com.bootforge.hbp.common.dto.booking.BookingStatus;
@@ -12,6 +13,7 @@ import com.bootforge.hbp.common.dto.hotel.HotelResponse;
 import com.bootforge.hbp.common.dto.reservation.ReserveRoomRequest;
 import com.bootforge.hbp.common.dto.reservation.RoomAvailabilityResponse;
 import com.bootforge.hbp.common.dto.room.RoomResponse;
+import com.bootforge.hbp.common.event.BookingCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,7 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final HotelClient hotelClient;
     private final RoomClient roomClient;
+    private final BookingEventProducer bookingEventProducer;
 
     public BookingResponse createBooking(CreateBookingRequest request) {
         validateDates(request.checkIn(), request.checkOut());
@@ -115,6 +118,20 @@ public class BookingService {
         // ==========================================
 
         savedBooking.setStatus(BookingStatus.PAYMENT_PENDING);
+
+        // ==========================================
+        // 10. Send Event to Kafka Topic
+        // ==========================================
+        BookingCreatedEvent event = new BookingCreatedEvent(
+                UUID.randomUUID().toString(),
+                savedBooking.getId(),
+                savedBooking.getBookingReference(),
+                savedBooking.getUserId(),
+                savedBooking.getHotelId(),
+                savedBooking.getRoomId(),
+                savedBooking.getTotalAmount()
+        );
+        bookingEventProducer.publishBookingCreated(event);
 
         return toResponse(savedBooking);
     }
