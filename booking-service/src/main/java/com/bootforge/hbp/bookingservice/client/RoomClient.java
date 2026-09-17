@@ -11,8 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 
 @FeignClient(
-        name = "room-service",
-        url = "${client.room-service.url}"
+        name = "room-service"
 )
 public interface RoomClient {
 

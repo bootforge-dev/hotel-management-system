@@ -10,6 +10,8 @@
         <module>room-service</module>
         <module>booking-service</module>
         <module>common</module>
+        <module>api-gateway</module>
+        <module>service-registry</module>
     </modules>
 
     <groupId>com.bootforge.hbp</groupId>
