@@ -1,7 +1,7 @@
 package com.bootforge.hbp.roomservice.service;
 
-import com.bootforge.hbp.roomservice.dto.CreateRoomRequest;
-import com.bootforge.hbp.roomservice.dto.RoomResponse;
+import com.bootforge.hbp.common.dto.room.CreateRoomRequest;
+import com.bootforge.hbp.common.dto.room.RoomResponse;
 import com.bootforge.hbp.roomservice.entity.Room;
 import com.bootforge.hbp.roomservice.exception.ResourceNotFoundException;
 import com.bootforge.hbp.roomservice.repository.RoomRepository;

@@ -11,9 +11,7 @@
 
     <artifactId>booking-service</artifactId>
 
-    <properties>
 
-    </properties>
 
     <dependencies>
         <dependency>
@@ -36,6 +34,15 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bootforge.hbp</groupId>
+            <artifactId>common</artifactId>
+            <version>1.0-SNAPSHOT</version>
         </dependency>
     </dependencies>
 

@@ -1,4 +1,4 @@
-package com.bootforge.hbp.roomservice.entity;
+package com.bootforge.hbp.common.dto.room;
 
 public enum RoomType {
     SINGLE,

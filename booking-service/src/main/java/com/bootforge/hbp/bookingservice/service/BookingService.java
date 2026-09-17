@@ -1,11 +1,15 @@
 package com.bootforge.hbp.bookingservice.service;
 
-import com.bootforge.hbp.bookingservice.dto.BookingResponse;
-import com.bootforge.hbp.bookingservice.dto.CreateBookingRequest;
+import com.bootforge.hbp.bookingservice.client.HotelClient;
+import com.bootforge.hbp.bookingservice.client.RoomClient;
 import com.bootforge.hbp.bookingservice.entity.Booking;
-import com.bootforge.hbp.bookingservice.entity.BookingStatus;
 import com.bootforge.hbp.bookingservice.exception.ResourceNotFoundException;
 import com.bootforge.hbp.bookingservice.repository.BookingRepository;
+import com.bootforge.hbp.common.dto.booking.BookingResponse;
+import com.bootforge.hbp.common.dto.booking.BookingStatus;
+import com.bootforge.hbp.common.dto.booking.CreateBookingRequest;
+import com.bootforge.hbp.common.dto.hotel.HotelResponse;
+import com.bootforge.hbp.common.dto.room.RoomResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,14 +25,33 @@ import java.util.UUID;
 public class BookingService {
 
     private final BookingRepository bookingRepository;
+    private final HotelClient hotelClient;
+    private final RoomClient roomClient;
 
     public BookingResponse createBooking(CreateBookingRequest request) {
         validateDates(request.checkIn(), request.checkOut());
 
+        HotelResponse hotel = hotelClient.getHotel(request.hotelId());
+        if (hotel == null) {
+            throw new ResourceNotFoundException("Hotel not found");
+        }
+        if (!Boolean.TRUE.equals(hotel.active())) {
+            throw new ResourceNotFoundException("Hotel is not active");
+        }
+
+        RoomResponse room = roomClient.getRoom(request.roomId());
+        if (!room.hotelId().equals(request.hotelId())) {
+            throw new ResourceNotFoundException("Room does not belongs to hotel");
+        }
+        if (!Boolean.TRUE.equals(room.active())) {
+            throw new ResourceNotFoundException("Room is not active");
+        }
+
         long nights = ChronoUnit.DAYS.between(request.checkIn(), request.checkOut());
 
-        BigDecimal roomPrice = BigDecimal.valueOf(100);
-        BigDecimal totalAmount = roomPrice.multiply(BigDecimal.valueOf(nights));
+        BigDecimal totalAmount = room.pricePerNight()
+                .multiply(
+                        BigDecimal.valueOf(nights));
 
         Booking booking = Booking.builder()
                 .bookingReference(generateBookingReference())

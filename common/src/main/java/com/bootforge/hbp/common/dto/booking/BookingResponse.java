@@ -1,6 +1,5 @@
-package com.bootforge.hbp.bookingservice.dto;
+package com.bootforge.hbp.common.dto.booking;
 
-import com.bootforge.hbp.bookingservice.entity.BookingStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

@@ -1,8 +1,8 @@
 package com.bootforge.hbp.bookingservice.controller;
 
-import com.bootforge.hbp.bookingservice.dto.BookingResponse;
-import com.bootforge.hbp.bookingservice.dto.CreateBookingRequest;
 import com.bootforge.hbp.bookingservice.service.BookingService;
+import com.bootforge.hbp.common.dto.booking.BookingResponse;
+import com.bootforge.hbp.common.dto.booking.CreateBookingRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
