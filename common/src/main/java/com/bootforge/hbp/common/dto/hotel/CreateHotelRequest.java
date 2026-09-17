@@ -1,4 +1,4 @@
-package com.bootforge.hbp.hotelservice.dto;
+package com.bootforge.hbp.common.dto.hotel;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;

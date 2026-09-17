@@ -1,5 +1,6 @@
 package com.bootforge.hbp.bookingservice.entity;
 
+import com.bootforge.hbp.common.dto.booking.BookingStatus;
 import jakarta.persistence.*;
 import lombok.*;
 

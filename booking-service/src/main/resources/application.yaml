@@ -20,3 +20,9 @@ spring:
 
 server:
   port: 9003
+
+client:
+  hotel-service:
+    url: http://localhost:9001
+  room-service:
+    url: http://localhost:9002

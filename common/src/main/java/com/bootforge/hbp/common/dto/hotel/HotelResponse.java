@@ -1,10 +1,7 @@
-package com.bootforge.hbp.hotelservice.dto;
+package com.bootforge.hbp.common.dto.hotel;
 
 
-import jakarta.persistence.Column;
 import lombok.Builder;
-
-import java.time.LocalDateTime;
 
 @Builder
 public record HotelResponse(

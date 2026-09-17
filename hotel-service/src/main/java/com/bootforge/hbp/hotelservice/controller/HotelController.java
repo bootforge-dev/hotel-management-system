@@ -1,8 +1,8 @@
 package com.bootforge.hbp.hotelservice.controller;
 
 
-import com.bootforge.hbp.hotelservice.dto.CreateHotelRequest;
-import com.bootforge.hbp.hotelservice.dto.HotelResponse;
+import com.bootforge.hbp.common.dto.hotel.CreateHotelRequest;
+import com.bootforge.hbp.common.dto.hotel.HotelResponse;
 import com.bootforge.hbp.hotelservice.service.HotelService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ public class HotelController {
 
     @PostMapping
     public ResponseEntity<HotelResponse> crateHotel(
-            @Valid @RequestBody CreateHotelRequest request){
+            @Valid @RequestBody CreateHotelRequest request) {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(hotelService.create(request));
@@ -35,17 +35,17 @@ public class HotelController {
     }
 
     @GetMapping
-    public ResponseEntity<List<HotelResponse>> getAllHotels(){
+    public ResponseEntity<List<HotelResponse>> getAllHotels() {
         return ResponseEntity.ok(hotelService.getAllHotels());
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<HotelResponse>> searchHotels(@RequestParam String city){
+    public ResponseEntity<List<HotelResponse>> searchHotels(@RequestParam String city) {
         return ResponseEntity.ok(hotelService.searchByCity(city));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteHotel(@PathVariable Long id){
+    public ResponseEntity<Void> deleteHotel(@PathVariable Long id) {
         hotelService.deleteHotel(id);
         return ResponseEntity.accepted().build();
     }

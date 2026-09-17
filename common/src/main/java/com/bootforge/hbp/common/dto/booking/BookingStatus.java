@@ -1,4 +1,4 @@
-package com.bootforge.hbp.bookingservice.entity;
+package com.bootforge.hbp.common.dto.booking;
 
 public enum BookingStatus {
 

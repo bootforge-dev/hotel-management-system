@@ -1,7 +1,7 @@
 package com.bootforge.hbp.hotelservice.service;
 
-import com.bootforge.hbp.hotelservice.dto.CreateHotelRequest;
-import com.bootforge.hbp.hotelservice.dto.HotelResponse;
+import com.bootforge.hbp.common.dto.hotel.CreateHotelRequest;
+import com.bootforge.hbp.common.dto.hotel.HotelResponse;
 import com.bootforge.hbp.hotelservice.entity.Hotel;
 import com.bootforge.hbp.hotelservice.exception.ResourceNotFoundException;
 import com.bootforge.hbp.hotelservice.repository.HotelRepository;

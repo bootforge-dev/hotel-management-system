@@ -9,6 +9,7 @@
         <module>hotel-service</module>
         <module>room-service</module>
         <module>booking-service</module>
+        <module>common</module>
     </modules>
 
     <groupId>com.bootforge.hbp</groupId>

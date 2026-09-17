@@ -75,3 +75,93 @@ hotel-booking-platform
     ├── database
     └── kafka
 ```
+
+## Phases
+
+```text
+PHASE 1
+────────────────────────────
+Hotel Service
+Room Service
+Booking Service
+MySQL
+Docker
+REST APIs
+        ↓
+
+PHASE 2
+────────────────────────────
+OpenFeign
+Service-to-service communication
+Error handling
+Timeouts
+        ↓
+
+PHASE 3
+────────────────────────────
+Eureka
+API Gateway
+Central Config
+        ↓
+
+PHASE 4
+────────────────────────────
+Kafka
+Booking Events
+Payment Events
+Notification Events
+        ↓
+
+PHASE 5
+────────────────────────────
+Payment Service
+Saga
+Compensation
+Idempotency
+DLQ
+Retry
+        ↓
+
+PHASE 6
+────────────────────────────
+Redis
+Availability Cache
+Distributed Lock
+Booking concurrency
+        ↓
+
+PHASE 7
+────────────────────────────
+Review Service
+Rating
+Verified booking
+        ↓
+
+PHASE 8
+────────────────────────────
+JWT
+Spring Security
+ADMIN
+HOTEL_OWNER
+CUSTOMER
+        ↓
+
+PHASE 9
+────────────────────────────
+Actuator
+Prometheus
+Grafana
+Distributed tracing
+        ↓
+
+PHASE 10
+────────────────────────────
+Docker
+Kubernetes
+AWS EKS
+RDS
+MSK
+ECR
+Terraform
+CI/CD
+```

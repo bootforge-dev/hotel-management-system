@@ -1,4 +1,4 @@
-package com.bootforge.hbp.bookingservice.dto;
+package com.bootforge.hbp.common.dto.booking;
 
 import jakarta.validation.constraints.NotNull;
 

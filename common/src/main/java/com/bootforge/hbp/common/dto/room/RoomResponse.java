@@ -1,6 +1,5 @@
-package com.bootforge.hbp.roomservice.dto;
+package com.bootforge.hbp.common.dto.room;
 
-import com.bootforge.hbp.roomservice.entity.RoomType;
 import lombok.Builder;
 
 import java.math.BigDecimal;

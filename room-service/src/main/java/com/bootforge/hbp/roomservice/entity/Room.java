@@ -1,5 +1,6 @@
 package com.bootforge.hbp.roomservice.entity;
 
+import com.bootforge.hbp.common.dto.room.RoomType;
 import jakarta.persistence.*;
 import lombok.*;
 
