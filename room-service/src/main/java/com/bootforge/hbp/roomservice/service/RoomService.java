@@ -44,7 +44,8 @@ public class RoomService {
     }
 
     public void deleteHotel(Long id) {
-        roomRepository.delete(getRoomById(id));
+        Room room = getRoomById(id);
+        room.setActive(false);
     }
 
     private RoomResponse toResponse(Room room) {

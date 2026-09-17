@@ -52,7 +52,9 @@ public class HotelService {
     }
 
     public void deleteHotel(Long id) {
-        hotelRepository.delete(getById(id));
+        Hotel hotel = getById(id);
+        hotel.setActive(false);
+
     }
 
     public Hotel getById(Long id) {
