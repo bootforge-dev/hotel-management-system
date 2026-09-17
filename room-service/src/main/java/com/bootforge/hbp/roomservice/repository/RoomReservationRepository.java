@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface RoomReservationRepository extends JpaRepository<RoomReservation, Long> {
-    List<RoomReservation> findRoomIdAndStatus(Long roomId, ReservationStatus status);
+    List<RoomReservation> findByRoomIdAndStatus(Long roomId, ReservationStatus status);
 
     Optional<RoomReservation> findByBookingId(Long bookingId);
 
