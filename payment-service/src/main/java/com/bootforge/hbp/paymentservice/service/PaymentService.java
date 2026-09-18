@@ -2,10 +2,14 @@ package com.bootforge.hbp.paymentservice.service;
 
 import com.bootforge.hbp.common.dto.payment.PaymentStatus;
 import com.bootforge.hbp.common.event.BookingCreatedEvent;
+import com.bootforge.hbp.common.event.PaymentFailedEvent;
+import com.bootforge.hbp.common.event.PaymentSuccessEvent;
 import com.bootforge.hbp.paymentservice.entity.Payment;
-import com.bootforge.hbp.paymentservice.kafka.producer.PaymentEventProducer;
+import com.bootforge.hbp.paymentservice.entity.ProcessedEvent;
 import com.bootforge.hbp.paymentservice.repository.PaymentRepository;
+import com.bootforge.hbp.paymentservice.repository.ProcessedEventRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,22 +18,30 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PaymentService {
     private final PaymentRepository paymentRepository;
-    private final PaymentEventProducer paymentEventProducer;
-
+    private final ProcessedEventRepository processedEventRepository;
+    private final OutboxService outboxService;
 
     @Transactional
     public void processPayment(BookingCreatedEvent event) {
 
-        // ==========================================
-        // IDEMPOTENCY CHECK
-        // ==========================================
+        /*
+         * Event-level idempotency
+         */
+        if (processedEventRepository.existsByEventId(event.eventId())) {
+            log.info("Event already processed. eventId={}", event.eventId());
+            return;
+        }
+
+        /*
+         * Business-level idempotency
+         */
         var existing = paymentRepository.findByBookingId(event.bookingId());
 
         if (existing.isPresent()) {
             Payment payment = existing.get();
-
             if (payment.getStatus() == PaymentStatus.SUCCESS) {
                 return;
             }
@@ -38,9 +50,6 @@ public class PaymentService {
             }
         }
 
-        // ==========================================
-        // CREATE PAYMENT
-        // ==========================================
         Payment payment = Payment.builder()
                 .bookingId(event.bookingId())
                 .paymentReference(generatePaymentReference())
@@ -50,20 +59,46 @@ public class PaymentService {
 
         paymentRepository.save(payment);
 
-        // ==========================================
-        // SIMULATE PAYMENT
-        // ==========================================
         boolean success = paymentProcessGateway(event.amount());
-
-        if(success){
+        if (success) {
             payment.setStatus(PaymentStatus.SUCCESS);
             paymentRepository.save(payment);
-            paymentEventProducer.publishPaymentSuccess(event, payment);
-        }else{
+            PaymentSuccessEvent successEvent =
+                    new PaymentSuccessEvent(
+                            UUID.randomUUID().toString(),
+                            event.bookingId(),
+                            event.bookingReference(),
+                            payment.getId(),
+                            payment.getPaymentReference()
+                    );
+            outboxService.savePaymentSuccessEvent(successEvent);
+        } else {
             payment.setStatus(PaymentStatus.FAILED);
             paymentRepository.save(payment);
-            paymentEventProducer.publishPaymentFailed(event, "Payment processing failed");
+            PaymentFailedEvent failedEvent =
+                    new PaymentFailedEvent(
+                            UUID.randomUUID().toString(),
+                            event.bookingId(),
+                            event.bookingReference(),
+                            "Payment processing failed"
+                    );
+            outboxService.savePaymentFailedEvent(failedEvent);
         }
+
+        /*
+         * Same local DB transaction:
+         *
+         * payments
+         * processed_events
+         * outbox_events
+         */
+        processedEventRepository.save(
+                ProcessedEvent.builder()
+                        .eventId(event.eventId())
+                        .eventType("BOOKING_CREATED")
+                        .build()
+        );
+
     }
 
     private String generatePaymentReference() {
