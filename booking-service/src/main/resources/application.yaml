@@ -1,7 +1,11 @@
 spring:
   application:
     name: booking-service
-
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2s
   datasource:
     url: jdbc:mysql://localhost:3306/bookings_db
     username: root

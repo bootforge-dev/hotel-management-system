@@ -27,7 +27,7 @@ public class OutboxService {
                     .eventType("BOOKING_CREATED")
                     .payload(payload)
                     .status(OutboxStatus.PENDING)
-                    .retryCount(10)
+                    .retryCount(0)
                     .build();
             outboxEventRepository.save(outboxEvent);
         } catch (JsonProcessingException e) {

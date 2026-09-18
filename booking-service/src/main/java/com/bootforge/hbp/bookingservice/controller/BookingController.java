@@ -19,9 +19,11 @@ public class BookingController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public BookingResponse createBooking(
+            @RequestHeader("Idempotency-Key")
+            String idempotencyKey,
             @Valid @RequestBody CreateBookingRequest request) {
 
-        return bookingService.createBooking(request);
+        return bookingService.createBooking(request, idempotencyKey);
     }
 
     @GetMapping("/{bookingReference}")

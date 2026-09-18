@@ -4,6 +4,7 @@ import com.bootforge.hbp.bookingservice.client.HotelClient;
 import com.bootforge.hbp.bookingservice.client.RoomClient;
 import com.bootforge.hbp.bookingservice.entity.Booking;
 import com.bootforge.hbp.bookingservice.exception.ResourceNotFoundException;
+import com.bootforge.hbp.bookingservice.redis.AvailabilityCacheService;
 import com.bootforge.hbp.bookingservice.repository.BookingRepository;
 import com.bootforge.hbp.common.dto.booking.BookingResponse;
 import com.bootforge.hbp.common.dto.booking.BookingStatus;
@@ -32,116 +33,186 @@ public class BookingService {
     private final RoomClient roomClient;
     private final OutboxService outboxService;
 
-    public BookingResponse createBooking(CreateBookingRequest request) {
+    private final RoomAvailabilityService roomAvailabilityService;
+    private final DistributedLockService distributedLockService;
+    private final AvailabilityCacheService availabilityCacheService;
+    private final IdempotencyService idempotencyService;
+
+    public BookingResponse createBooking(CreateBookingRequest request, String idempotencyKey) {
         validateDates(request.checkIn(), request.checkOut());
+
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Idempotency-Key header is required"
+            );
+        }
+
+        BookingResponse existingResponse = idempotencyService.getCompletedResponse(idempotencyKey);
+
+        if (existingResponse != null) {
+            return existingResponse;
+        }
+
+        boolean acquired =
+                idempotencyService.tryStartProcessing(idempotencyKey);
+
+        if (!acquired) {
+            BookingResponse completedResponse = idempotencyService.getCompletedResponse(idempotencyKey);
+            if (completedResponse != null) {
+                return completedResponse;
+            }
+
+            throw new IllegalStateException(
+                    "A booking request with this Idempotency-Key is already being processed"
+            );
+        }
 
         // ==========================================
         // 1. Validate Hotel
         // ==========================================
+        try {
+            HotelResponse hotel = hotelClient.getHotel(request.hotelId());
+            if (hotel == null) {
+                throw new ResourceNotFoundException("Hotel not found");
+            }
+            if (!Boolean.TRUE.equals(hotel.active())) {
+                throw new ResourceNotFoundException("Hotel is not active");
+            }
 
-        HotelResponse hotel = hotelClient.getHotel(request.hotelId());
-        if (hotel == null) {
-            throw new ResourceNotFoundException("Hotel not found");
+            // ==========================================
+            // 2. Get Room
+            // ==========================================
+
+            RoomResponse room = roomClient.getRoom(request.roomId());
+
+            // ==========================================
+            // 3. Validate Room belongs to Hotel
+            // ==========================================
+
+            if (!room.hotelId().equals(request.hotelId())) {
+                throw new ResourceNotFoundException("Room does not belongs to hotel");
+            }
+
+            // ==========================================
+            // 4. Validate Room Active
+            // ==========================================
+
+            if (!Boolean.TRUE.equals(room.active())) {
+                throw new ResourceNotFoundException("Room is not active");
+            }
+
+            String lockValue =
+                    UUID.randomUUID().toString();
+
+            boolean lockAcquired =
+                    distributedLockService.tryLock(
+                            request.roomId(),
+                            request.checkIn(),
+                            request.checkOut(),
+                            lockValue
+                    );
+            if (!lockAcquired) {
+
+                throw new IllegalStateException(
+                        "Room is currently being booked. Please try again."
+                );
+            }
+
+
+            // ==========================================
+            // 5. Check Availability
+            // ==========================================
+
+            try {
+                RoomAvailabilityResponse availability =
+                        roomAvailabilityService.checkAvailability(request.roomId(), request.checkIn(), request.checkOut());
+
+                if (availability == null) {
+                    throw new IllegalStateException("Unable to check room availability");
+                }
+                if (!availability.available()) {
+                    throw new RuntimeException(availability.message());
+                }
+
+                // ==========================================
+                // 6. Calculate Price
+                // ==========================================
+
+                long nights = ChronoUnit.DAYS.between(request.checkIn(), request.checkOut());
+
+                BigDecimal totalAmount = room.pricePerNight()
+                        .multiply(
+                                BigDecimal.valueOf(nights));
+
+                // ==========================================
+                // 7. Create Booking
+                // ==========================================
+
+                Booking booking = Booking.builder()
+                        .bookingReference(generateBookingReference())
+                        .userId(request.userId())
+                        .hotelId(request.hotelId())
+                        .roomId(request.roomId())
+                        .checkIn(request.checkIn())
+                        .checkOut(request.checkOut())
+                        .totalAmount(totalAmount)
+                        .status(BookingStatus.PENDING)
+                        .build();
+                Booking savedBooking = bookingRepository.save(booking);
+
+                // ==========================================
+                // 8. Reserve Room
+                // ==========================================
+                ReserveRoomRequest reserveRequest = new ReserveRoomRequest(
+                        savedBooking.getId(),
+                        savedBooking.getCheckIn(),
+                        savedBooking.getCheckOut());
+
+                roomClient.reserveRoom(request.roomId(), reserveRequest);
+
+                // ==========================================
+                // 9. Change status
+                // ==========================================
+
+                savedBooking.setStatus(BookingStatus.PAYMENT_PENDING);
+
+                availabilityCacheService.evict(request.roomId(), request.checkIn(), request.checkOut());
+
+                // ==========================================
+                // 10. Send Event to Kafka Topic
+                // ==========================================
+                BookingCreatedEvent event = new BookingCreatedEvent(
+                        UUID.randomUUID().toString(),
+                        savedBooking.getId(),
+                        savedBooking.getBookingReference(),
+                        savedBooking.getUserId(),
+                        savedBooking.getHotelId(),
+                        savedBooking.getRoomId(),
+                        savedBooking.getTotalAmount()
+                );
+
+                /*
+                 * IMPORTANT:
+                 * Do NOT publish directly to Kafka.
+                 * Store the event in outbox_events.
+                 */
+                outboxService.saveBookingCreatedEvent(event);
+
+                BookingResponse response = toResponse(savedBooking);
+                idempotencyService.markCompleted(idempotencyKey, response);
+                return response;
+            } finally {
+                distributedLockService.unlock(
+                        request.roomId(),
+                        request.checkIn(),
+                        request.checkOut(),
+                        lockValue
+                );
+            }
+        } catch (RuntimeException exception) {
+            idempotencyService.remove(idempotencyKey);
+            throw exception;
         }
-        if (!Boolean.TRUE.equals(hotel.active())) {
-            throw new ResourceNotFoundException("Hotel is not active");
-        }
-
-        // ==========================================
-        // 2. Get Room
-        // ==========================================
-
-        RoomResponse room = roomClient.getRoom(request.roomId());
-
-        // ==========================================
-        // 3. Validate Room belongs to Hotel
-        // ==========================================
-
-        if (!room.hotelId().equals(request.hotelId())) {
-            throw new ResourceNotFoundException("Room does not belongs to hotel");
-        }
-
-        // ==========================================
-        // 4. Validate Room Active
-        // ==========================================
-
-        if (!Boolean.TRUE.equals(room.active())) {
-            throw new ResourceNotFoundException("Room is not active");
-        }
-
-        // ==========================================
-        // 5. Check Availability
-        // ==========================================
-
-        RoomAvailabilityResponse availability = roomClient.checkAvailability(request.roomId(), request.checkIn(), request.checkOut());
-
-        if (!availability.available()) {
-            throw new RuntimeException(availability.message());
-        }
-
-        // ==========================================
-        // 6. Calculate Price
-        // ==========================================
-
-        long nights = ChronoUnit.DAYS.between(request.checkIn(), request.checkOut());
-
-        BigDecimal totalAmount = room.pricePerNight()
-                .multiply(
-                        BigDecimal.valueOf(nights));
-
-        // ==========================================
-        // 7. Create Booking
-        // ==========================================
-
-        Booking booking = Booking.builder()
-                .bookingReference(generateBookingReference())
-                .userId(request.userId())
-                .hotelId(request.hotelId())
-                .roomId(request.roomId())
-                .checkIn(request.checkIn())
-                .checkOut(request.checkOut())
-                .totalAmount(totalAmount)
-                .status(BookingStatus.PENDING)
-                .build();
-        Booking savedBooking = bookingRepository.save(booking);
-
-        // ==========================================
-        // 8. Reserve Room
-        // ==========================================
-        ReserveRoomRequest reserveRequest = new ReserveRoomRequest(
-                savedBooking.getId(),
-                savedBooking.getCheckIn(),
-                savedBooking.getCheckOut());
-
-        roomClient.reserveRoom(request.roomId(), reserveRequest);
-
-        // ==========================================
-        // 9. Change status
-        // ==========================================
-
-        savedBooking.setStatus(BookingStatus.PAYMENT_PENDING);
-
-        // ==========================================
-        // 10. Send Event to Kafka Topic
-        // ==========================================
-        BookingCreatedEvent event = new BookingCreatedEvent(
-                UUID.randomUUID().toString(),
-                savedBooking.getId(),
-                savedBooking.getBookingReference(),
-                savedBooking.getUserId(),
-                savedBooking.getHotelId(),
-                savedBooking.getRoomId(),
-                savedBooking.getTotalAmount()
-        );
-
-        /*
-         * IMPORTANT:
-         * Do NOT publish directly to Kafka.
-         * Store the event in outbox_events.
-         */
-        outboxService.saveBookingCreatedEvent(event);
-
-        return toResponse(savedBooking);
     }
 
     @Transactional(readOnly = true)
