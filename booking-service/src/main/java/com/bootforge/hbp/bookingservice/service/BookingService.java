@@ -1,11 +1,11 @@
 package com.bootforge.hbp.bookingservice.service;
 
-import com.bootforge.hbp.bookingservice.client.HotelClient;
-import com.bootforge.hbp.bookingservice.client.RoomClient;
 import com.bootforge.hbp.bookingservice.entity.Booking;
 import com.bootforge.hbp.bookingservice.exception.ResourceNotFoundException;
 import com.bootforge.hbp.bookingservice.redis.AvailabilityCacheService;
 import com.bootforge.hbp.bookingservice.repository.BookingRepository;
+import com.bootforge.hbp.bookingservice.resilience.HotelResilienceService;
+import com.bootforge.hbp.bookingservice.resilience.RoomResilienceService;
 import com.bootforge.hbp.common.dto.booking.BookingResponse;
 import com.bootforge.hbp.common.dto.booking.BookingStatus;
 import com.bootforge.hbp.common.dto.booking.CreateBookingRequest;
@@ -29,8 +29,8 @@ import java.util.UUID;
 public class BookingService {
 
     private final BookingRepository bookingRepository;
-    private final HotelClient hotelClient;
-    private final RoomClient roomClient;
+    private final HotelResilienceService hotelResilienceService;
+    private final RoomResilienceService roomResilienceService;
     private final OutboxService outboxService;
 
     private final RoomAvailabilityService roomAvailabilityService;
@@ -71,7 +71,7 @@ public class BookingService {
         // 1. Validate Hotel
         // ==========================================
         try {
-            HotelResponse hotel = hotelClient.getHotel(request.hotelId());
+            HotelResponse hotel = hotelResilienceService.getHotel(request.hotelId());
             if (hotel == null) {
                 throw new ResourceNotFoundException("Hotel not found");
             }
@@ -83,7 +83,7 @@ public class BookingService {
             // 2. Get Room
             // ==========================================
 
-            RoomResponse room = roomClient.getRoom(request.roomId());
+            RoomResponse room = roomResilienceService.getRoom(request.roomId());
 
             // ==========================================
             // 3. Validate Room belongs to Hotel
@@ -168,7 +168,7 @@ public class BookingService {
                         savedBooking.getCheckIn(),
                         savedBooking.getCheckOut());
 
-                roomClient.reserveRoom(request.roomId(), reserveRequest);
+                roomResilienceService.reserveRoom(request.roomId(), reserveRequest);
 
                 // ==========================================
                 // 9. Change status
@@ -223,7 +223,7 @@ public class BookingService {
     public void cancelBooking(String bookingReference) {
         Booking booking = getBookingByReference(bookingReference);
 
-        roomClient.releaseRoom(booking.getRoomId(), booking.getId());
+        roomResilienceService.releaseRoom(booking.getRoomId(), booking.getId());
 
         booking.setStatus(BookingStatus.CANCELLED);
     }

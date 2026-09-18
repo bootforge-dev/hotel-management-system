@@ -1,7 +1,7 @@
 package com.bootforge.hbp.bookingservice.service;
 
-import com.bootforge.hbp.bookingservice.client.RoomClient;
 import com.bootforge.hbp.bookingservice.redis.AvailabilityCacheService;
+import com.bootforge.hbp.bookingservice.resilience.RoomResilienceService;
 import com.bootforge.hbp.common.dto.reservation.RoomAvailabilityResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -12,7 +12,7 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 public class RoomAvailabilityService {
 
-    private final RoomClient roomClient;
+    private final RoomResilienceService roomResilienceService;
     private final AvailabilityCacheService availabilityCacheService;
 
     public RoomAvailabilityResponse checkAvailability(Long roomId, LocalDate checkIn, LocalDate checkOut) {
@@ -22,7 +22,7 @@ public class RoomAvailabilityService {
                     ? "Room available"
                     : "Room not available");
         }
-        RoomAvailabilityResponse response = roomClient.checkAvailability(roomId, checkIn, checkOut);
+        RoomAvailabilityResponse response = roomResilienceService.checkAvailability(roomId, checkIn, checkOut);
         availabilityCacheService.put(roomId, checkIn, checkOut, response.available());
 
         return response;

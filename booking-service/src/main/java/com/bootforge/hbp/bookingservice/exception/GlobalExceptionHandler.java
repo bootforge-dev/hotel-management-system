@@ -1,5 +1,7 @@
 package com.bootforge.hbp.bookingservice.exception;
 
+import com.bootforge.hbp.bookingservice.resilience.exception.HotelServiceUnavailableException;
+import com.bootforge.hbp.bookingservice.resilience.exception.RoomServiceUnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -56,6 +58,28 @@ public class GlobalExceptionHandler {
                         request.getRequestURI(),
                         null));
 
+    }
+
+    @ExceptionHandler({
+            HotelServiceUnavailableException.class,
+            RoomServiceUnavailableException.class
+    })
+    public ResponseEntity<ErrorResponse> handleServiceUnavailable(
+            RuntimeException ex,
+            HttpServletRequest request
+    ) {
+
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(
+                        build(
+                                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                                HttpStatus.SERVICE_UNAVAILABLE.getReasonPhrase(),
+                                ex.getMessage(),
+                                request.getRequestURI(),
+                                null
+                        )
+                );
     }
 
     private ErrorResponse build(Integer status, String error, String message, String path, Map<String, String> errors) {
