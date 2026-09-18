@@ -4,7 +4,6 @@ import com.bootforge.hbp.bookingservice.client.HotelClient;
 import com.bootforge.hbp.bookingservice.client.RoomClient;
 import com.bootforge.hbp.bookingservice.entity.Booking;
 import com.bootforge.hbp.bookingservice.exception.ResourceNotFoundException;
-import com.bootforge.hbp.bookingservice.kafka.producer.BookingEventProducer;
 import com.bootforge.hbp.bookingservice.repository.BookingRepository;
 import com.bootforge.hbp.common.dto.booking.BookingResponse;
 import com.bootforge.hbp.common.dto.booking.BookingStatus;
@@ -31,7 +30,7 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final HotelClient hotelClient;
     private final RoomClient roomClient;
-    private final BookingEventProducer bookingEventProducer;
+    private final OutboxService outboxService;
 
     public BookingResponse createBooking(CreateBookingRequest request) {
         validateDates(request.checkIn(), request.checkOut());
@@ -109,7 +108,10 @@ public class BookingService {
         // ==========================================
         // 8. Reserve Room
         // ==========================================
-        ReserveRoomRequest reserveRequest = new ReserveRoomRequest(savedBooking.getId(), savedBooking.getCheckIn(), savedBooking.getCheckOut());
+        ReserveRoomRequest reserveRequest = new ReserveRoomRequest(
+                savedBooking.getId(),
+                savedBooking.getCheckIn(),
+                savedBooking.getCheckOut());
 
         roomClient.reserveRoom(request.roomId(), reserveRequest);
 
@@ -131,7 +133,13 @@ public class BookingService {
                 savedBooking.getRoomId(),
                 savedBooking.getTotalAmount()
         );
-        bookingEventProducer.publishBookingCreated(event);
+
+        /*
+         * IMPORTANT:
+         * Do NOT publish directly to Kafka.
+         * Store the event in outbox_events.
+         */
+        outboxService.saveBookingCreatedEvent(event);
 
         return toResponse(savedBooking);
     }
